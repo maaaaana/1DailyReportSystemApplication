@@ -2,150 +2,67 @@ package com.techacademy.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.techacademy.constants.ErrorKinds;
-import com.techacademy.entity.Employee;
-import com.techacademy.repository.EmployeeRepository;
+import com.techacademy.entity.Report;
+import com.techacademy.repository.ReportRepository;
 
-@Service
-public class ReportService {
+    @Service
+    public class ReportService {
 
-    private final EmployeeRepository employeeRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final ReportRepository reportRepository;
 
-    public ReportService(EmployeeRepository employeeRepository, PasswordEncoder passwordEncoder) {
-        this.employeeRepository = employeeRepository;
-        this.passwordEncoder = passwordEncoder;
+    @Autowired
+    public ReportService(ReportRepository reportRepository) {
+        this.reportRepository = reportRepository;
     }
 
-    // 従業員保存（新規作成用）
     @Transactional
-    public ErrorKinds save(Employee employee) {
-        // パスワードチェック
-        ErrorKinds result = employeePasswordCheck(employee);
-        if (ErrorKinds.CHECK_OK != result) {
-            return result;
-        }
-
-        // 従業員番号重複チェック
-        if (findByCode(employee.getCode()) != null) {
-            return ErrorKinds.DUPLICATE_ERROR;
-        }
-
-        employee.setDeleteFlg(false);
+    public void save(Report report) {
         LocalDateTime now = LocalDateTime.now();
-        employee.setCreatedAt(now);
-        employee.setUpdatedAt(now);
 
-        // ハッシュ化（2重防止つき）
-        encodePasswordIfNeeded(employee);
-
-        employeeRepository.save(employee);
-        return ErrorKinds.SUCCESS;
-    }
-
-    // 従業員削除
-    @Transactional
-    public ErrorKinds delete(String code, UserDetail userDetail) {
-        if (code.equals(userDetail.getEmployee().getCode())) {
-            return ErrorKinds.LOGINCHECK_ERROR;
+        // 作成日時が未設定なら設定する
+        if (report.getCreatedAt() == null) {
+            report.setCreatedAt(now);
         }
 
-        Employee employee = findByCode(code);
-        LocalDateTime now = LocalDateTime.now();
-        employee.setUpdatedAt(now);
-        employee.setDeleteFlg(true);
+        report.setUpdatedAt(now);
+        report.setDeleteFlg(false); // 論理削除フラグ（true = 削除）
 
-        return ErrorKinds.SUCCESS;
+        reportRepository.save(report);
     }
 
     // 一覧取得
-    public List<Employee> findAll() {
-        return employeeRepository.findAll();
+    public List<Report> findAll() {
+        return reportRepository.findAll();
     }
 
-    // 1件取得
-    public Employee findByCode(String code) {
-        Optional<Employee> option = employeeRepository.findById(code);
-        return option.orElse(null);
+    //1件取得
+    public Report findById(Long id) {
+        return reportRepository.findById(id).orElse(null);
     }
 
-    // パスワードバリデーション
-    private ErrorKinds employeePasswordCheck(Employee employee) {
-        if (isHalfSizeCheckError(employee)) {
-            return ErrorKinds.HALFSIZE_ERROR;
-        }
-
-        if (isOutOfRangePassword(employee)) {
-            return ErrorKinds.RANGECHECK_ERROR;
-        }
-
-        return ErrorKinds.CHECK_OK;
-    }
-
-    // 半角英数字チェック
-    private boolean isHalfSizeCheckError(Employee employee) {
-        Pattern pattern = Pattern.compile("^[A-Za-z0-9]+$");
-        Matcher matcher = pattern.matcher(employee.getPassword());
-        return !matcher.matches();
-    }
-
-    // 8～16文字チェック
-    public boolean isOutOfRangePassword(Employee employee) {
-        int passwordLength = employee.getPassword().length();
-        return passwordLength < 8 || 16 < passwordLength;
-    }
-
-    // ✅ 追加：パスワードがハッシュ済みかを判断してハッシュ化（重ねがけ防止）
-    private void encodePasswordIfNeeded(Employee employee) {
-        if (employee.getPassword() != null && !employee.getPassword().startsWith("$2a$")) {
-            employee.setPassword(passwordEncoder.encode(employee.getPassword()));
-        }
-    }
-
-    // ✅ 更新・新規共通の保存処理
     @Transactional
-    public ErrorKinds save(Employee employee, boolean isNew) {
-        if (isNew) {
-            if (findByCode(employee.getCode()) != null) {
-                return ErrorKinds.DUPLICATE_ERROR;
-            }
-            employee.setCreatedAt(LocalDateTime.now());
-        } else {
-            Employee dbEmployee = findByCode(employee.getCode());
-            if (dbEmployee == null) {
-                return ErrorKinds.NOTFOUND_ERROR;
-            }
-            employee.setCreatedAt(dbEmployee.getCreatedAt());
+    public void delete(Long id) {
+        Report report = reportRepository.findById(id).orElse(null);
+        if (report != null) {
+            report.setDeleteFlg(true);
+            report.setUpdatedAt(LocalDateTime.now());
+            reportRepository.save(report);
         }
-
-        employee.setUpdatedAt(LocalDateTime.now());
-        employee.setDeleteFlg(false);
-
-        if (employee.getPassword() == null || "".equals(employee.getPassword())) {
-            if (!isNew) {
-                employee.setPassword(findByCode(employee.getCode()).getPassword());
-            } else {
-                return ErrorKinds.BLANK_ERROR;
-            }
-        } else {
-            ErrorKinds result = employeePasswordCheck(employee);
-            if (ErrorKinds.CHECK_OK != result) {
-                return result;
-            }
-
-            // ✅ ハッシュ化（すでにされてるかも確認）
-            encodePasswordIfNeeded(employee);
-        }
-
-        employeeRepository.save(employee);
-        return ErrorKinds.SUCCESS;
     }
+
+    @Transactional
+    public void update(Long id, Report updatedReport) {
+        Report report = reportRepository.findById(id).orElseThrow();
+
+        report.setReportDate(updatedReport.getReportDate());
+        report.setTitle(updatedReport.getTitle());
+        report.setContent(updatedReport.getContent());
+        report.setUpdatedAt(LocalDateTime.now());
+    }
+
 }
