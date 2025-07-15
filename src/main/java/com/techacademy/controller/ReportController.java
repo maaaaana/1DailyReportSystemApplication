@@ -112,7 +112,7 @@ public class ReportController {
 
     //更新画面表示（GET）
     @GetMapping("/{id}/update")
-    public String showUpdate(@PathVariable("id") Long id, Model model) {
+    public String edit(@PathVariable("id") Long id, Model model) {
         Report report = reportService.findById(id); // データ取得
         model.addAttribute("report", report);
         return "report/update"; // update.html に遷移

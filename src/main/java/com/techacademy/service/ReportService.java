@@ -91,14 +91,7 @@ import com.techacademy.repository.ReportRepository;
     }
 
     public boolean isDuplicateForUpdate(Long id, LocalDate date, Employee employee) {
-        List<Report> reports = reportRepository.findByDeleteFlgFalse();
-
-        return reports.stream()
-            .filter(r -> !r.getId().equals(id)) // ←型が一致して安心！
-            .anyMatch(r ->
-                r.getReportDate().equals(date) &&
-                r.getEmployee().getCode().equals(employee.getCode())
-            );
+        Report duplicate = reportRepository.findByReportDateAndEmployeeAndIdNot(date, employee, id);
+        return duplicate != null;
     }
-
 }
