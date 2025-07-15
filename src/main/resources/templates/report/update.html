@@ -34,6 +34,7 @@
                                         <label class="form-label">氏名</label>
                                         <div class="col-md-7 pt-2">
                                             <span th:text="${report.employee.name}">氏名</span>
+                                            <span th:unless="${report.employee != null}">未設定</span>
                                         </div>
                                     </div>
 
